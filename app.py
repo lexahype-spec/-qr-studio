@@ -26,6 +26,8 @@ def init_db():
             )
         """)
 
+init_db()
+
 def make_qr_png(text):
     qr = qrcode.QRCode(
         version=None,
@@ -46,7 +48,7 @@ def index():
         history = conn.execute(
             "SELECT id, content, created_at FROM qr_history ORDER BY id DESC"
         ).fetchall()
-    return render_template("index.html", history=history, max_text_length=MAX_TEXT_LENGTH)
+    return render_template("index.html", history=history, max_text_length=MAX_TEXT_LENGTH, created_id=request.args.get("created", type=int))
 
 @app.post("/generate")
 def generate():
@@ -72,6 +74,14 @@ def generate():
         )
         new_id = cursor.lastrowid
     return redirect(url_for("index", created=new_id))
+
+@app.get("/qr/<int:qr_id>")
+def preview_qr(qr_id):
+    with get_db() as conn:
+        item = conn.execute("SELECT image_png FROM qr_history WHERE id = ?", (qr_id,)).fetchone()
+    if item is None:
+        abort(404)
+    return send_file(BytesIO(item["image_png"]), mimetype="image/png", as_attachment=False)
 
 @app.get("/download/<int:qr_id>")
 def download(qr_id):
